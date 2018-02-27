@@ -10,7 +10,7 @@ find_package(Eigen REQUIRED)
 find_package(OpenCV REQUIRED)
 include_directories(include
     ${OpenCV_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIR}
+    ${EIGEN_INCLUDE_DIR}
     )
 
 if(USE_ROS)
