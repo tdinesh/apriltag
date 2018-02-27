@@ -4,7 +4,9 @@ project(apriltag_mit)
 set(USE_ROS TRUE)
 set(CMAKE_CXX_STANDARD 11)
 
-find_package(Eigen3 REQUIRED)
+find_package(cmake_modules REQUIRED)
+
+find_package(Eigen REQUIRED)
 find_package(OpenCV REQUIRED)
 include_directories(include
     ${OpenCV_INCLUDE_DIRS}
@@ -14,7 +16,7 @@ include_directories(include
 if(USE_ROS)
     find_package(catkin REQUIRED COMPONENTS roslib)
     catkin_package(
-        DEPENDS OpenCV EIGEN3
+        DEPENDS OpenCV EIGEN
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME}
         )
