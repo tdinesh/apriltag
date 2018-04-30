@@ -3,6 +3,7 @@ project(apriltag_mit)
 
 set(USE_ROS TRUE)
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_FLAGS -std=c++11)
 
 find_package(cmake_modules REQUIRED)
 

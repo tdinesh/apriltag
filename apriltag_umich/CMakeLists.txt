@@ -3,6 +3,7 @@ project(apriltag_umich)
 
 set(USE_ROS TRUE)
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_C_FLAGS -std=gnu99)
 
 find_package (Threads REQUIRED)
 include_directories(include src)
