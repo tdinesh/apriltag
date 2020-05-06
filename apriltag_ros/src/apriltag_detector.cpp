@@ -14,7 +14,8 @@ namespace umich = apriltag_umich;
 /// ================
 ApriltagDetector::ApriltagDetector(const DetectorType &detector_type,
                                    const TagFamily &tag_family)
-    : payload_(TagFamilyToPayload(tag_family)), detector_type_(detector_type),
+    : payload_(TagFamilyToPayload(tag_family)),
+      detector_type_(detector_type),
       tag_family_(tag_family),
       tag_family_str_(DetectorTypeToString(detector_type)) {}
 
@@ -30,21 +31,25 @@ int ApriltagDetector::decimate() const { return decimate_; }
 void ApriltagDetector::set_nthreads(int nthreads) { SetNThreads(nthreads); }
 int ApriltagDetector::nthreads() const { return nthreads_; }
 
+void ApriltagDetector::print_profiling_info() const {
+  PrintProfilingInfo();
+}
+
 int ApriltagDetector::payload() const { return payload_; }
 const std::string &ApriltagDetector::tag_family() const {
   return tag_family_str_;
 }
 
+
 ApriltagVec ApriltagDetector::Detect(const cv::Mat &image) {
-  if (image.empty())
-    return {};
+  if (image.empty()) return {};
 
   // Check image type
   cv::Mat gray;
   if (image.type() == CV_8UC1) {
     gray = image;
   } else if (image.type() == CV_8UC3) {
-    cv::cvtColor(image, gray, CV_BGR2GRAY);
+    cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
   } else {
     return {};
   }
@@ -56,12 +61,12 @@ ApriltagVec ApriltagDetector::Detect(const cv::Mat &image) {
 ApriltagDetectorPtr ApriltagDetector::Create(const DetectorType &detector_type,
                                              const TagFamily &tag_family) {
   switch (detector_type) {
-  case DetectorType::Mit:
-    return boost::make_shared<ApriltagDetectorMit>(tag_family);
-  case DetectorType::Umich:
-    return ApriltagDetectorPtr(new ApriltagDetectorUmich(tag_family));
-  default:
-    throw std::invalid_argument("Invalid apriltag detector type.");
+    case DetectorType::Mit:
+      return boost::make_shared<ApriltagDetectorMit>(tag_family);
+    case DetectorType::Umich:
+      return ApriltagDetectorPtr(new ApriltagDetectorUmich(tag_family));
+    default:
+      throw std::invalid_argument("Invalid apriltag detector type.");
   }
 }
 
@@ -71,17 +76,18 @@ ApriltagDetectorPtr ApriltagDetector::Create(const DetectorType &detector_type,
 ApriltagDetectorMit::ApriltagDetectorMit(const TagFamily &tag_family)
     : ApriltagDetector(DetectorType::Mit, tag_family) {
   switch (tag_family) {
-  case TagFamily::tf36h11:
-    tag_detector_ = boost::make_shared<mit::TagDetector>(mit::tag_codes_36h11);
-    break;
-  case TagFamily::tf25h9:
-    tag_detector_ = boost::make_shared<mit::TagDetector>(mit::tag_codes_25h9);
-    break;
-  case TagFamily::tf16h5:
-    tag_detector_ = boost::make_shared<mit::TagDetector>(mit::tag_codes_16h5);
-    break;
-  default:
-    throw std::invalid_argument("Invalid tag family");
+    case TagFamily::tf36h11:
+      tag_detector_ =
+          boost::make_shared<mit::TagDetector>(mit::tag_codes_36h11);
+      break;
+    case TagFamily::tf25h9:
+      tag_detector_ = boost::make_shared<mit::TagDetector>(mit::tag_codes_25h9);
+      break;
+    case TagFamily::tf16h5:
+      tag_detector_ = boost::make_shared<mit::TagDetector>(mit::tag_codes_16h5);
+      break;
+    default:
+      throw std::invalid_argument("Invalid tag family");
   }
 }
 
@@ -90,6 +96,9 @@ void ApriltagDetectorMit::SetBlackBorder(int black_border) {
 }
 void ApriltagDetectorMit::SetDecimate(int decimate) { decimate_ = 1; }
 void ApriltagDetectorMit::SetNThreads(int nthreads) { nthreads_ = 1; }
+void ApriltagDetectorMit::PrintProfilingInfo() const {
+  // TODO: implement performance analysis for MIT detector
+}
 
 ApriltagVec ApriltagDetectorMit::DetectImpl(const cv::Mat &image) {
   // Detection
@@ -124,17 +133,17 @@ ApriltagDetectorUmich::ApriltagDetectorUmich(const TagFamily &tag_family)
     : ApriltagDetector(DetectorType::Umich, tag_family),
       tag_detector_(apriltag_detector_create()) {
   switch (tag_family) {
-  case TagFamily::tf36h11:
-    tag_family_.reset(tag36h11_create());
-    break;
-  case TagFamily::tf25h9:
-    tag_family_.reset(tag25h9_create());
-    break;
-  case TagFamily::tf16h5:
-    tag_family_.reset(tag16h5_create());
-    break;
-  default:
-    throw std::invalid_argument("Invalid tag family");
+    case TagFamily::tf36h11:
+      tag_family_.reset(tag36h11_create());
+      break;
+    case TagFamily::tf25h9:
+      tag_family_.reset(tag25h9_create());
+      break;
+    case TagFamily::tf16h5:
+      tag_family_.reset(tag16h5_create());
+      break;
+    default:
+      throw std::invalid_argument("Invalid tag family");
   }
   apriltag_detector_add_family(tag_detector_.get(), tag_family_.get());
 }
@@ -148,6 +157,10 @@ void ApriltagDetectorUmich::SetDecimate(int decimate) {
 void ApriltagDetectorUmich::SetNThreads(int nthreads) {
   tag_detector_->nthreads = nthreads_;
 }
+void ApriltagDetectorUmich::PrintProfilingInfo() const {
+  timeprofile_display(tag_detector_->tp);
+}
+
 
 ApriltagVec ApriltagDetectorUmich::DetectImpl(const cv::Mat &image) {
   umich::ImageU8Ptr image_u8(
@@ -194,21 +207,22 @@ void DrawApriltag(cv::Mat &image, const apriltag_msgs::Apriltag &apriltag,
   cv::line(image, cv::Point2i(p[2].x, p[2].y), cv::Point2i(p[1].x, p[1].y),
            CV_RGB(0, 0, 255), thickness);
 
+  const auto line_type = cv::LINE_AA;
   if (draw_corners) {
     int r = thickness;
     cv::circle(image, cv::Point2i(p[0].x, p[0].y), r, CV_RGB(255, 0, 0), -1,
-               CV_AA);
+               line_type);
     cv::circle(image, cv::Point2i(p[1].x, p[1].y), r, CV_RGB(0, 255, 0), -1,
-               CV_AA);
+               line_type);
     cv::circle(image, cv::Point2i(p[2].x, p[2].y), r, CV_RGB(0, 0, 255), -1,
-               CV_AA);
+               line_type);
     cv::circle(image, cv::Point2i(p[3].x, p[3].y), r, CV_RGB(255, 0, 255), -1,
-               CV_AA);
+               line_type);
   }
 
   cv::putText(image, std::to_string(apriltag.id),
               cv::Point2f(apriltag.center.x - 5, apriltag.center.y + 5),
-              cv::FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 255), 2, CV_AA);
+              cv::FONT_HERSHEY_SIMPLEX, 1, CV_RGB(255, 0, 255), 2, line_type);
 }
 
 void DrawApriltags(cv::Mat &image, const ApriltagVec &apriltags) {
@@ -219,25 +233,25 @@ void DrawApriltags(cv::Mat &image, const ApriltagVec &apriltags) {
 
 int TagFamilyToPayload(const TagFamily &tag_family) {
   switch (tag_family) {
-  case TagFamily::tf36h11:
-    return 6;
-  case TagFamily::tf25h9:
-    return 5;
-  case TagFamily::tf16h5:
-    return 4;
-  default:
-    throw std::invalid_argument("Invalid tag family");
+    case TagFamily::tf36h11:
+      return 6;
+    case TagFamily::tf25h9:
+      return 5;
+    case TagFamily::tf16h5:
+      return 4;
+    default:
+      throw std::invalid_argument("Invalid tag family");
   }
 }
 
 std::string DetectorTypeToString(const DetectorType &detector_type) {
   switch (detector_type) {
-  case DetectorType::Mit:
-    return {"mit"};
-  case DetectorType::Umich:
-    return {"umich"};
-  default:
-    throw std::invalid_argument("Invalid detector type");
+    case DetectorType::Mit:
+      return {"mit"};
+    case DetectorType::Umich:
+      return {"umich"};
+    default:
+      throw std::invalid_argument("Invalid detector type");
   }
 }
 
@@ -285,4 +299,4 @@ bool InsideImage(const cv::Mat &image, const cv::Point2f &p, int b) {
 //  }
 //}
 
-} // namespace apriltag_ros
+}  // namespace apriltag_ros
